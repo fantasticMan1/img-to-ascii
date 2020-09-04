@@ -18,9 +18,6 @@ CHARACTERS = [
 
 spritesheet = None
 
-# TODO: Standardize size of spritesheet so that incoming image can be resized
-# around the characters
-
 
 def char_to_img(c):
     """Retrieves an image slice representing any ASCII character"""
@@ -33,16 +30,11 @@ def char_to_img(c):
     y = (n // 32) * h
     x = (n % 32) * w
     if c == ' ':  # Spritesheet has no ` ` character, so handle that here.
-        return np.zeros((h,w))
-    return spritesheet[y+2:y+h, x+1:x+w-1]
-
+        return np.zeros((h,w), dtype=np.uint8)
+    return spritesheet[y:y+h, x:x+w]
 
 def match_character_to_region(c, img_region):
     """Returns a ranking of how well the character is matched by the image"""
-
-    # TODO: find a better matching algorithm: one that increases the score for
-    # the brightness inside the character region, and decreases the score for
-    # all characters outside the character region
 
     char_img = char_to_img(c)
     if char_img.shape != img_region.shape:
@@ -58,11 +50,11 @@ def get_character_from_region(img):
     match_character_to_region
     """
 
-    best_fit_char = 0
-    imax = 0
+    best_fit_char = ' '
+    imax = None
     for c in CHARACTERS:
         rank = match_character_to_region(c, img)
-        if rank > imax:
+        if imax is None or rank > imax:
             best_fit_char = c
             imax = rank
     return best_fit_char
@@ -134,7 +126,10 @@ def main(*args):
         f.writelines(lines)
 
 if __name__ == '__main__':
-    spritesheet = cv2.imread('char_sprite.png', cv2.IMREAD_UNCHANGED)
+    spritesheet = cv2.imread('char_sprite_2048x1410.png')
+    spritesheet = convert_to_grayscale(spritesheet)
+    spritesheet = cv2.bitwise_not(spritesheet)
+    spritesheet = cv2.blur(spritesheet, (21, 21))
 
     if len(sys.argv) > 1:
         main(*sys.argv)
