@@ -2,7 +2,11 @@ import cv2
 import sys
 import os
 import numpy as np
-import pdb
+import logging
+from datetime import datetime
+
+
+logging.getLogger().setLevel(logging.INFO)
 
 
 CHARACTERS = [
@@ -36,13 +40,27 @@ def char_to_img(c):
 def match_character_to_region(c, img_region):
     """Returns a ranking of how well the character is matched by the image"""
 
+    global spritesheet
+
     char_img = char_to_img(c)
     if char_img.shape != img_region.shape:
-        char_img = cv2.resize(char_img, (img_region.shape[1], img_region.shape[0]))
+        # Resize the spritesheet so that the sections will overlay
+        x_scaling_factor = img_region.shape[1] / char_img.shape[1]
+        y_scaling_factor = img_region.shape[0] / char_img.shape[0]
+        new_shape = (
+            int(spritesheet.shape[1] * x_scaling_factor),
+            int(spritesheet.shape[0] * y_scaling_factor),
+        )
+        logging.info('resizing spritesheet from %dx%d to %dx%d',
+            spritesheet.shape[1], spritesheet.shape[0],
+            new_shape[0], new_shape[1])
+        spritesheet = cv2.resize(spritesheet, new_shape)
+
+        return match_character_to_region(c, img_region)
+
     combined = (char_img + img_region) / 2
     mean, _ = cv2.meanStdDev(combined)
     return 255 - mean
-
 
 def get_character_from_region(img):
     """
@@ -83,15 +101,23 @@ def parse_input(args):
 
 def get_filename_from_args(args):
     """Lops of the path and extension of the input image file."""
-    # TODO: add filename argument
 
     img_path = args[1]
     path_end = img_path.rfind('/')
-    extension_start = img_path.find('.')
+    extension_start = img_path.rfind('.')
     return img_path[path_end+1:extension_start]
 
-def convert_to_grayscale(img):
-    return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+def get_spritesheet():
+    img = cv2.imread('char_sheet.png')
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    img = cv2.bitwise_not(img)
+
+    # Add a halo to the characters so that neighboring pixels are more likely
+    # to contribute to a match
+    blurred = cv2.blur(img, (5, 5))
+    img = img + cv2.resize(blurred, (img.shape[1], img.shape[0]))
+
+    return img
 
 def avg_threshold(img):
     """
@@ -107,7 +133,7 @@ def avg_threshold(img):
 def main(*args):
     img, width = parse_input(args)
 
-    gray = convert_to_grayscale(img)
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
     img_height, img_width = gray.shape
 
@@ -135,10 +161,10 @@ def main(*args):
         f.writelines(lines)
 
 if __name__ == '__main__':
-    spritesheet = cv2.imread('char_sprite_2048x1410.png')
-    spritesheet = convert_to_grayscale(spritesheet)
-    spritesheet = cv2.bitwise_not(spritesheet)
-    spritesheet = cv2.blur(spritesheet, (21, 21))
+    t0 = datetime.now()
 
-    if len(sys.argv) > 1:
-        main(*sys.argv)
+    spritesheet = get_spritesheet()
+    main(*sys.argv)
+
+    t1 = datetime.now()
+    logging.info('total time: %d seconds', (t1 - t0).total_seconds())
