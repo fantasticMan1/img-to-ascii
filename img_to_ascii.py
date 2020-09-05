@@ -59,18 +59,27 @@ def get_character_from_region(img):
             imax = rank
     return best_fit_char
 
-def get_img_from_args(args):
+def parse_input(args):
     """
     Simple wrapper for cv2.imread which throws an error if the file is not
     found.
+
+    Returns a numpy array and the width in characters given in the CLI.
     """
+
+    if len(args) < 2:
+        raise RuntimeError('usage: `img_to_ascii.py <image filename> <width (optional)>')
+    elif len(args) == 2:
+        w = 120
+    else:
+        w = int(args[2])
 
     img_path = args[1]
     if os.path.exists(img_path):
         img = cv2.imread(img_path)
     else:
         raise FileNotFoundError(f'{img_path}')
-    return img
+    return img, w
 
 def get_filename_from_args(args):
     """Lops of the path and extension of the input image file."""
@@ -96,13 +105,13 @@ def avg_threshold(img):
 
 
 def main(*args):
-    img = get_img_from_args(args)
+    img, width = parse_input(args)
 
     gray = convert_to_grayscale(img)
 
     img_height, img_width = gray.shape
 
-    char_width = img_width // 120  # TODO: adjustable page width
+    char_width = img_width // width
     char_height = 2 * char_width
 
     thresh = avg_threshold(gray)
@@ -111,7 +120,7 @@ def main(*args):
     for y in range(img_height // char_height):
         y *= char_height
         row = []
-        for x in range(120):
+        for x in range(width):
             x *= char_width
             img_slice = thresh[y:y+char_height, x:x+char_width]
             row.append(get_character_from_region(img_slice))
