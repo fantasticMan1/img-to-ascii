@@ -140,6 +140,9 @@ def main(*args):
     char_width = img_width // width
     char_height = 2 * char_width
 
+    blurred = cv2.GaussianBlur(gray, (0, 0), 15)
+    gray = cv2.addWeighted(gray, 3.0, blurred, -2.0, 0)
+
     thresh = avg_threshold(gray)
 
     table = []
