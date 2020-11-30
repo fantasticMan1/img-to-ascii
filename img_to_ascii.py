@@ -140,8 +140,10 @@ def main(*args):
     char_width = img_width // width
     char_height = 2 * char_width
 
-    blurred = cv2.GaussianBlur(gray, (0, 0), 15)
-    gray = cv2.addWeighted(gray, 3.0, blurred, -2.0, 0)
+    logging.info('character width: %d, character height: %d.', char_width, char_height)
+
+    blurred = cv2.GaussianBlur(gray, (0, 0), 2*char_width+1)
+    gray = cv2.addWeighted(gray, 2.0, blurred, -1.0, 0)
 
     thresh = avg_threshold(gray)
 
